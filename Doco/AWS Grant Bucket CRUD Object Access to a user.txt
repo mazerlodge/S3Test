@@ -1,0 +1,95 @@
+AWS Grant Bucket CRUD Object Access to a user.txt
+
+Goal - List steps to grant a user who doesn't own a bucket CRUD access to objects in the bucket.
+
+Overview:
+----------- 
+Create a bucket named s3test20220723
+To verify only the intended bucket is writable, add a second bucket e.g. s3test20220723B
+Create an IAM group named S3_ReadWrite_TestBucket
+Create a user with no special privs names s3user2, add user to the group S3_ReadWrite_TestBucket
+Add a bucket policy to the target bucket granting s3user2 all s3 actions.
+
+Result: 
+---------
+User s3user2 will be able to see all buckets on the console and via CLI but will only be able to see and CRUD objects in the target bucket, not the second bucket.
+
+Details:
+----------
+- Create an IAM Group 'S3_ReadWrite_TestBucket' with the following 3 policies 
+	Note: Policies can be inline or 'customer managed' (aka created as IAM Policies)
+	
+	Policy #1 - QS3ListAllMyBuckets 
+	-- This lets the user see "root level" bucket list, so they can see the entry point.  They see other buckets as well but can't interact with them.
+		Note: Refs to public access block, policy status, acls, and access points clears up permission denied message on ACL column in S3 Console
+	{
+		"Version": "2012-10-17",
+		"Statement": [
+			{
+				"Sid": "VisualEditor0",
+				"Effect": "Allow",
+				"Action": [
+					"s3:GetBucketPublicAccessBlock",
+					"s3:GetBucketPolicyStatus",
+					"s3:GetBucketAcl"
+				],
+				"Resource": "arn:aws:s3:::*"
+			},
+			{
+				"Sid": "VisualEditor1",
+				"Effect": "Allow",
+				"Action": [
+					"s3:GetAccountPublicAccessBlock",
+					"s3:ListAllMyBuckets",					<-- This is the only required one.
+					"s3:ListAccessPoints"
+				],
+				"Resource": "*"
+			}
+		]
+	}
+
+	Policy #2 - QS3ListTestBucket 
+	-- This lets the user see the items in the test bucket.
+	{
+		"Version": "2012-10-17",
+		"Statement": [
+			{
+				"Sid": "VisualEditor0",
+				"Effect": "Allow",
+				"Action": "s3:ListBucket",
+				"Resource": "arn:aws:s3:::s3test20220723"
+			}
+		]
+	}
+
+	Policy #3 - QS3ReadWriteTestBucket
+	-- This lets the group CRUD Objects in the test bucket, wildcard used.
+	{
+		"Version": "2012-10-17",
+		"Statement": [
+			{
+				"Sid": "VisualEditor0",
+				"Effect": "Allow",
+				"Action": "s3:*Object",
+				"Resource": "arn:aws:s3:::s3test20220723/*"
+			}
+		]
+	}
+
+- Add a bucket policy to the target bucket (this grants all S3 actions): 
+{
+    "Version": "2012-10-17",
+    "Id": "Policy1658621999274",
+    "Statement": [
+        {
+            "Sid": "Stmt1658621997454",
+            "Effect": "Allow",
+            "Principal": {
+                "AWS": "arn:aws:iam::983887507360:user/s3user2"
+            },
+            "Action": "s3:*",
+            "Resource": "arn:aws:s3:::s3test20220723"
+        }
+    ]
+}
+
